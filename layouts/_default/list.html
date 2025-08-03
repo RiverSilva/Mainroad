@@ -1,18 +1,50 @@
 {{ define "main" }}
 <main class="main list" role="main">
-	{{- with .Title }}
-	<header class="main__header">
-		<h1 class="main__title">{{ . }}</h1>
-	</header>
-	{{- end }}
-	{{- with .Content }}
-	<div class="content main__content clearfix">
-		{{ . }}
-	</div>
-	{{- end }}
-	{{- range .Paginator.Pages }}
-		{{- .Render "summary" }}
-	{{- end }}
+    {{- with .Title }}
+    <header class="main__header">
+        <h1 class="main__title">{{ . }}</h1>
+    </header>
+    {{- end }}
+    {{- with .Content }}
+    <div class="content main__content clearfix">
+        {{ . }}
+    </div>
+    {{- end }}
+
+    <div id="infinite-content">
+        {{- range .Paginator.Pages }}
+            {{- .Render "summary" }}
+        {{- end }}
+    </div>
+
+    <nav class="pagination" style="display: none;">
+        {{ partial "pagination.html" . }}
+    </nav>
+
+    <script>
+        let loading = false;
+        window.onscroll = async function () {
+            if (!loading && window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+                loading = true;
+                const nextLink = document.querySelector('.pagination .next');
+                if (nextLink) {
+                    try {
+                        const res = await fetch(nextLink.href);
+                        const html = await res.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newPosts = doc.querySelectorAll('#infinite-content > *');
+                        newPosts.forEach(el => document.querySelector('#infinite-content').appendChild(el));
+                        const newPagination = doc.querySelector('.pagination');
+                        document.querySelector('.pagination').innerHTML = newPagination.innerHTML;
+                    } catch (e) {
+                        console.error("Erro ao carregar página seguinte:", e);
+                    }
+                }
+                loading = false;
+            }
+        };
+    </script>
 </main>
-{{ partial "pagination.html" . }}
 {{ end }}
+
