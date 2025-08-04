@@ -11,14 +11,14 @@
     </div>
     {{- end }}
 
-    <!-- Debug info -->
-    <div style="display: none;">
-        Total pages: {{ .Paginator.TotalPages }}<br>
-        Current page: {{ .Paginator.PageNumber }}<br>
-        Has next: {{ .Paginator.HasNext }}<br>
-        Posts per page: {{ .Paginator.PageSize }}<br>
-        Total posts: {{ len .Site.RegularPages }}
-    </div>
+    <!-- Debug info (apenas para desenvolvimento) -->
+    <!-- 
+    Total pages: {{ .Paginator.TotalPages }}
+    Current page: {{ .Paginator.PageNumber }}
+    Has next: {{ .Paginator.HasNext }}
+    Posts this page: {{ len .Paginator.Pages }}
+    Total posts: {{ len .Site.RegularPages }}
+    -->
 
     <!-- Container para posts com rolagem infinita -->
     <div id="infinite-content" class="list__content">
@@ -57,8 +57,9 @@
             let hasMore = {{ .Paginator.HasNext }};
             let pageNumber = {{ .Paginator.PageNumber }};
             let totalPages = {{ .Paginator.TotalPages }};
+            let postsThisPage = {{ len .Paginator.Pages }};
             
-            console.log(`📊 Status inicial: página ${pageNumber}/${totalPages}, hasMore: ${hasMore}`);
+            console.log(`📊 Status inicial: página ${pageNumber}/${totalPages}, hasMore: ${hasMore}, posts: ${postsThisPage}`);
             
             const loadingIndicator = document.getElementById('loading-indicator');
             const infiniteContent = document.getElementById('infinite-content');

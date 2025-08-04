@@ -1,0 +1,70 @@
+{{ define "main" }}
+<main class="main list" role="main">
+    {{- with .Title }}
+    <header class="main__header">
+        <h1 class="main__title">{{ . }}</h1>
+    </header>
+    {{- end }}
+    {{- with .Content }}
+    <div class="content main__content clearfix">
+        {{ . }}
+    </div>
+    {{- end }}
+
+    <div class="posts-container">
+        {{- range .Paginator.Pages }}
+            {{- .Render "summary" }}
+        {{- end }}
+    </div>
+
+    <!-- Botão "Carregar Mais" como alternativa -->
+    {{- if .Paginator.HasNext }}
+    <div class="load-more-container" style="text-align: center; margin: 30px 0;">
+        <button id="load-more-btn" class="btn" style="background: #333; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">
+            Carregar Mais Notícias
+        </button>
+    </div>
+    
+    <nav class="pagination" style="display: none;">
+        <a class="pagination__next" href="{{ .Paginator.Next.URL }}">Próxima</a>
+    </nav>
+
+    <script>
+        document.getElementById('load-more-btn').addEventListener('click', async function() {
+            const btn = this;
+            const nextLink = document.querySelector('.pagination__next');
+            
+            if (!nextLink) return;
+            
+            btn.textContent = 'Carregando...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(nextLink.href);
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                const newPosts = doc.querySelectorAll('.posts-container .list__item');
+                const container = document.querySelector('.posts-container');
+                
+                newPosts.forEach(post => container.appendChild(post.cloneNode(true)));
+                
+                const newNextLink = doc.querySelector('.pagination__next');
+                if (newNextLink) {
+                    document.querySelector('.pagination__next').href = newNextLink.href;
+                    btn.textContent = 'Carregar Mais Notícias';
+                    btn.disabled = false;
+                } else {
+                    btn.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                btn.textContent = 'Erro ao carregar';
+            }
+        });
+    </script>
+    {{- end }}
+</main>
+{{ end }}
