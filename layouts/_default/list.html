@@ -11,16 +11,7 @@
     </div>
     {{- end }}
 
-    <!-- Debug info (apenas para desenvolvimento) -->
-    <!-- 
-    Total pages: {{ .Paginator.TotalPages }}
-    Current page: {{ .Paginator.PageNumber }}
-    Has next: {{ .Paginator.HasNext }}
-    Posts this page: {{ len .Paginator.Pages }}
-    Total posts: {{ len .Site.RegularPages }}
-    -->
-
-    <!-- Container para posts com rolagem infinita -->
+    <!-- Container para posts -->
     <div id="infinite-content" class="list__content">
         {{- range .Paginator.Pages }}
             {{- .Render "summary" }}
@@ -29,155 +20,202 @@
 
     <!-- Loading indicator -->
     <div id="loading-indicator" style="display: none; text-align: center; padding: 20px; color: #666;">
-        <div class="loading-spinner">🔄 Carregando mais notícias...</div>
+        <div style="font-size: 14px;">🔄 Carregando mais notícias...</div>
     </div>
 
     <!-- Botão manual como fallback -->
     {{- if .Paginator.HasNext }}
     <div id="load-more-container" style="text-align: center; margin: 30px 0;">
-        <button id="load-more-btn" class="btn" style="background: #333; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+        <button id="load-more-btn" style="background: #333; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-family: inherit;">
             Carregar Mais Notícias
         </button>
     </div>
     {{- end }}
 
-    <!-- Paginação oculta (usada pelo JavaScript) -->
+    <!-- Paginação original (oculta mas funcional) -->
     <nav class="pagination" style="display: none;">
+        {{- if .Paginator.HasPrev }}
+        <a class="pagination__item pagination__item--prev btn" href="{{ .Paginator.Prev.URL }}">«</a>
+        {{- end }}
+        <span class="pagination__item pagination__item--current">{{ .Paginator.PageNumber }}/{{ .Paginator.TotalPages }}</span>
         {{- if .Paginator.HasNext }}
-        <a class="pagination__next" href="{{ .Paginator.Next.URL }}">Próxima</a>
+        <a class="pagination__item pagination__item--next btn" href="{{ .Paginator.Next.URL }}">»</a>
         {{- end }}
     </nav>
 
-    <!-- Script melhorado -->
+    <!-- Script de rolagem infinita COMPLETAMENTE NOVO -->
     <script>
-        (function() {
-            console.log('🚀 Infinite scroll iniciado');
-            
-            let loading = false;
-            let hasMore = {{ .Paginator.HasNext }};
-            let pageNumber = {{ .Paginator.PageNumber }};
-            let totalPages = {{ .Paginator.TotalPages }};
-            let postsThisPage = {{ len .Paginator.Pages }};
-            
-            console.log(`📊 Status inicial: página ${pageNumber}/${totalPages}, hasMore: ${hasMore}, posts: ${postsThisPage}`);
-            
-            const loadingIndicator = document.getElementById('loading-indicator');
-            const infiniteContent = document.getElementById('infinite-content');
-            const loadMoreBtn = document.getElementById('load-more-btn');
-            
-            async function loadMorePosts() {
-                if (loading || !hasMore) {
-                    console.log('❌ Não carregando:', {loading, hasMore});
-                    return;
-                }
-                
-                const nextLink = document.querySelector('.pagination__next');
-                if (!nextLink) {
-                    console.log('❌ Link next não encontrado');
-                    hasMore = false;
-                    return;
-                }
-                
-                loading = true;
-                loadingIndicator.style.display = 'block';
-                if (loadMoreBtn) loadMoreBtn.textContent = 'Carregando...';
-                
-                try {
-                    console.log('📡 Fazendo fetch:', nextLink.href);
-                    const response = await fetch(nextLink.href);
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    const html = await response.text();
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    // Buscar novos posts
-                    const newPosts = doc.querySelectorAll('#infinite-content .list__item');
-                    console.log(`📄 Novos posts encontrados: ${newPosts.length}`);
-                    
-                    if (newPosts.length === 0) {
-                        console.log('❌ Nenhum post novo encontrado');
-                        hasMore = false;
-                        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-                        return;
-                    }
-                    
-                    // Adicionar posts com animação
-                    newPosts.forEach((post, index) => {
-                        const clonedPost = post.cloneNode(true);
-                        clonedPost.style.opacity = '0';
-                        clonedPost.style.transform = 'translateY(20px)';
-                        infiniteContent.appendChild(clonedPost);
-                        
-                        // Animar entrada
-                        setTimeout(() => {
-                            clonedPost.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-                            clonedPost.style.opacity = '1';
-                            clonedPost.style.transform = 'translateY(0)';
-                        }, index * 100);
-                    });
-                    
-                    // Atualizar paginação
-                    const newNextLink = doc.querySelector('.pagination__next');
-                    const currentPagination = document.querySelector('.pagination');
-                    
-                    if (newNextLink) {
-                        currentPagination.innerHTML = `<a class="pagination__next" href="${newNextLink.href}">Próxima</a>`;
-                        pageNumber++;
-                        console.log(`✅ Página ${pageNumber} carregada`);
-                        if (loadMoreBtn) loadMoreBtn.textContent = 'Carregar Mais Notícias';
-                    } else {
-                        hasMore = false;
-                        currentPagination.innerHTML = '';
-                        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
-                        console.log('🏁 Não há mais páginas');
-                    }
-                    
-                } catch (error) {
-                    console.error('❌ Erro ao carregar:', error);
-                    hasMore = false;
-                    if (loadMoreBtn) loadMoreBtn.textContent = 'Erro ao carregar';
-                } finally {
-                    loading = false;
-                    loadingIndicator.style.display = 'none';
-                }
+    (function() {
+        'use strict';
+        
+        // Debug inicial
+        console.log('🚀 BR Defense Center - Infinite Scroll v2.0');
+        console.log('📊 Página:', {{ .Paginator.PageNumber }}, 'de', {{ .Paginator.TotalPages }});
+        console.log('📄 Posts nesta página:', {{ len .Paginator.Pages }});
+        console.log('➡️ Tem próxima?', {{ .Paginator.HasNext }});
+        
+        // Variáveis globais
+        let isLoading = false;
+        let hasMorePages = {{ .Paginator.HasNext }};
+        let currentPage = {{ .Paginator.PageNumber }};
+        let totalPages = {{ .Paginator.TotalPages }};
+        
+        // Elementos DOM
+        const infiniteContent = document.getElementById('infinite-content');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const loadMoreBtn = document.getElementById('load-more-btn');
+        
+        if (!infiniteContent) {
+            console.error('❌ Elemento #infinite-content não encontrado');
+            return;
+        }
+        
+        console.log('✅ Elementos DOM encontrados');
+        
+        // Função para carregar mais posts
+        async function loadMorePosts() {
+            if (isLoading || !hasMorePages) {
+                console.log('🛑 Não carregando - loading:', isLoading, 'hasMore:', hasMorePages);
+                return;
             }
             
-            // Listener de scroll com debounce
-            let scrollTimeout;
-            window.addEventListener('scroll', function() {
-                if (scrollTimeout) clearTimeout(scrollTimeout);
-                
-                scrollTimeout = setTimeout(function() {
-                    if (!loading && hasMore) {
-                        const scrollPosition = window.innerHeight + window.scrollY;
-                        const threshold = document.body.offsetHeight - 800;
-                        
-                        if (scrollPosition >= threshold) {
-                            console.log('🔽 Trigger de scroll ativado');
-                            loadMorePosts();
-                        }
-                    }
-                }, 150);
-            });
+            // Buscar link da próxima página
+            const nextPageLink = document.querySelector('.pagination__item--next');
+            if (!nextPageLink) {
+                console.log('❌ Link da próxima página não encontrado');
+                hasMorePages = false;
+                return;
+            }
             
-            // Listener do botão manual
+            const nextURL = nextPageLink.href;
+            console.log('📡 Carregando próxima página:', nextURL);
+            
+            // Mostrar loading
+            isLoading = true;
+            if (loadingIndicator) loadingIndicator.style.display = 'block';
             if (loadMoreBtn) {
-                loadMoreBtn.addEventListener('click', function() {
-                    console.log('🖱️ Botão clicado');
-                    loadMorePosts();
+                loadMoreBtn.textContent = 'Carregando...';
+                loadMoreBtn.disabled = true;
+            }
+            
+            try {
+                // Fazer fetch da próxima página
+                const response = await fetch(nextURL);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const newDocument = parser.parseFromString(htmlText, 'text/html');
+                
+                // Buscar novos posts
+                const newPosts = newDocument.querySelectorAll('#infinite-content .list__item');
+                console.log('📄 Novos posts encontrados:', newPosts.length);
+                
+                if (newPosts.length === 0) {
+                    console.log('❌ Nenhum post encontrado na próxima página');
+                    hasMorePages = false;
+                    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                    return;
+                }
+                
+                // Adicionar novos posts com animação
+                let delay = 0;
+                newPosts.forEach((post) => {
+                    const newPost = post.cloneNode(true);
+                    newPost.style.opacity = '0';
+                    newPost.style.transform = 'translateY(20px)';
+                    newPost.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    
+                    infiniteContent.appendChild(newPost);
+                    
+                    // Animar aparição
+                    setTimeout(() => {
+                        newPost.style.opacity = '1';
+                        newPost.style.transform = 'translateY(0)';
+                    }, delay);
+                    
+                    delay += 100;
                 });
+                
+                // Atualizar controles de paginação
+                const newNextLink = newDocument.querySelector('.pagination__item--next');
+                const currentPagination = document.querySelector('.pagination');
+                
+                if (newNextLink && currentPagination) {
+                    // Substituir toda a paginação
+                    const newPagination = newDocument.querySelector('.pagination');
+                    if (newPagination) {
+                        currentPagination.innerHTML = newPagination.innerHTML;
+                    }
+                    
+                    currentPage++;
+                    console.log(`✅ Página ${currentPage} carregada com sucesso`);
+                    
+                    if (loadMoreBtn) {
+                        loadMoreBtn.textContent = 'Carregar Mais Notícias';
+                        loadMoreBtn.disabled = false;
+                    }
+                } else {
+                    // Não há mais páginas
+                    hasMorePages = false;
+                    console.log('🏁 Última página carregada');
+                    if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar mais posts:', error);
+                hasMorePages = false;
+                if (loadMoreBtn) {
+                    loadMoreBtn.textContent = 'Erro ao carregar';
+                    loadMoreBtn.disabled = true;
+                }
+            } finally {
+                isLoading = false;
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
             }
+        }
+        
+        // Event listener para scroll automático
+        let scrollTimeout;
+        function onScroll() {
+            if (scrollTimeout) clearTimeout(scrollTimeout);
             
-            // Log inicial
-            if (!hasMore) {
-                console.log('ℹ️ Apenas uma página - rolagem infinita não necessária');
-            }
-            
-        })();
+            scrollTimeout = setTimeout(() => {
+                if (isLoading || !hasMorePages) return;
+                
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const windowHeight = window.innerHeight;
+                const docHeight = document.documentElement.scrollHeight;
+                
+                // Trigger quando estiver a 800px do final
+                if (scrollTop + windowHeight >= docHeight - 800) {
+                    console.log('🔽 Scroll trigger ativado');
+                    loadMorePosts();
+                }
+            }, 200);
+        }
+        
+        // Event listener para botão manual
+        if (loadMoreBtn) {
+            loadMoreBtn.addEventListener('click', function() {
+                console.log('🖱️ Botão "Carregar Mais" clicado');
+                loadMorePosts();
+            });
+        }
+        
+        // Adicionar listener de scroll
+        window.addEventListener('scroll', onScroll);
+        
+        // Log final
+        if (!hasMorePages) {
+            console.log('ℹ️ Apenas uma página disponível');
+        } else {
+            console.log('✅ Rolagem infinita ativada');
+        }
+        
+    })();
     </script>
 </main>
 {{ end }}
