@@ -11,6 +11,15 @@
     </div>
     {{- end }}
 
+    <!-- Debug info -->
+    <div style="display: none;">
+        Total pages: {{ .Paginator.TotalPages }}<br>
+        Current page: {{ .Paginator.PageNumber }}<br>
+        Has next: {{ .Paginator.HasNext }}<br>
+        Posts per page: {{ .Paginator.PageSize }}<br>
+        Total posts: {{ len .Site.RegularPages }}
+    </div>
+
     <!-- Container para posts com rolagem infinita -->
     <div id="infinite-content" class="list__content">
         {{- range .Paginator.Pages }}
@@ -19,9 +28,18 @@
     </div>
 
     <!-- Loading indicator -->
-    <div id="loading-indicator" style="display: none; text-align: center; padding: 20px;">
-        <div class="loading-spinner">Carregando mais notícias...</div>
+    <div id="loading-indicator" style="display: none; text-align: center; padding: 20px; color: #666;">
+        <div class="loading-spinner">🔄 Carregando mais notícias...</div>
     </div>
+
+    <!-- Botão manual como fallback -->
+    {{- if .Paginator.HasNext }}
+    <div id="load-more-container" style="text-align: center; margin: 30px 0;">
+        <button id="load-more-btn" class="btn" style="background: #333; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+            Carregar Mais Notícias
+        </button>
+    </div>
+    {{- end }}
 
     <!-- Paginação oculta (usada pelo JavaScript) -->
     <nav class="pagination" style="display: none;">
@@ -30,31 +48,41 @@
         {{- end }}
     </nav>
 
-    <!-- Script de rolagem infinita melhorado -->
+    <!-- Script melhorado -->
     <script>
         (function() {
+            console.log('🚀 Infinite scroll iniciado');
+            
             let loading = false;
             let hasMore = {{ .Paginator.HasNext }};
+            let pageNumber = {{ .Paginator.PageNumber }};
+            let totalPages = {{ .Paginator.TotalPages }};
+            
+            console.log(`📊 Status inicial: página ${pageNumber}/${totalPages}, hasMore: ${hasMore}`);
+            
             const loadingIndicator = document.getElementById('loading-indicator');
             const infiniteContent = document.getElementById('infinite-content');
-            
-            console.log('Infinite scroll initialized. HasMore:', hasMore);
+            const loadMoreBtn = document.getElementById('load-more-btn');
             
             async function loadMorePosts() {
-                if (loading || !hasMore) return;
+                if (loading || !hasMore) {
+                    console.log('❌ Não carregando:', {loading, hasMore});
+                    return;
+                }
                 
                 const nextLink = document.querySelector('.pagination__next');
                 if (!nextLink) {
-                    console.log('No next link found');
+                    console.log('❌ Link next não encontrado');
                     hasMore = false;
                     return;
                 }
                 
                 loading = true;
                 loadingIndicator.style.display = 'block';
+                if (loadMoreBtn) loadMoreBtn.textContent = 'Carregando...';
                 
                 try {
-                    console.log('Fetching:', nextLink.href);
+                    console.log('📡 Fazendo fetch:', nextLink.href);
                     const response = await fetch(nextLink.href);
                     
                     if (!response.ok) {
@@ -65,93 +93,88 @@
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
                     
-                    // Encontrar novos posts
+                    // Buscar novos posts
                     const newPosts = doc.querySelectorAll('#infinite-content .list__item');
-                    console.log('Found new posts:', newPosts.length);
+                    console.log(`📄 Novos posts encontrados: ${newPosts.length}`);
                     
                     if (newPosts.length === 0) {
-                        console.log('No more posts found');
+                        console.log('❌ Nenhum post novo encontrado');
                         hasMore = false;
+                        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
                         return;
                     }
                     
-                    // Adicionar novos posts
-                    newPosts.forEach(post => {
-                        infiniteContent.appendChild(post.cloneNode(true));
+                    // Adicionar posts com animação
+                    newPosts.forEach((post, index) => {
+                        const clonedPost = post.cloneNode(true);
+                        clonedPost.style.opacity = '0';
+                        clonedPost.style.transform = 'translateY(20px)';
+                        infiniteContent.appendChild(clonedPost);
+                        
+                        // Animar entrada
+                        setTimeout(() => {
+                            clonedPost.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                            clonedPost.style.opacity = '1';
+                            clonedPost.style.transform = 'translateY(0)';
+                        }, index * 100);
                     });
                     
-                    // Atualizar link de paginação
+                    // Atualizar paginação
                     const newNextLink = doc.querySelector('.pagination__next');
                     const currentPagination = document.querySelector('.pagination');
                     
                     if (newNextLink) {
                         currentPagination.innerHTML = `<a class="pagination__next" href="${newNextLink.href}">Próxima</a>`;
+                        pageNumber++;
+                        console.log(`✅ Página ${pageNumber} carregada`);
+                        if (loadMoreBtn) loadMoreBtn.textContent = 'Carregar Mais Notícias';
                     } else {
                         hasMore = false;
                         currentPagination.innerHTML = '';
-                        console.log('No more pages available');
+                        if (loadMoreBtn) loadMoreBtn.style.display = 'none';
+                        console.log('🏁 Não há mais páginas');
                     }
                     
                 } catch (error) {
-                    console.error('Error loading more posts:', error);
+                    console.error('❌ Erro ao carregar:', error);
                     hasMore = false;
+                    if (loadMoreBtn) loadMoreBtn.textContent = 'Erro ao carregar';
                 } finally {
                     loading = false;
                     loadingIndicator.style.display = 'none';
                 }
             }
             
-            // Listener de scroll otimizado
+            // Listener de scroll com debounce
             let scrollTimeout;
             window.addEventListener('scroll', function() {
-                if (scrollTimeout) {
-                    clearTimeout(scrollTimeout);
-                }
+                if (scrollTimeout) clearTimeout(scrollTimeout);
                 
                 scrollTimeout = setTimeout(function() {
                     if (!loading && hasMore) {
                         const scrollPosition = window.innerHeight + window.scrollY;
-                        const threshold = document.body.offsetHeight - 1000; // Carregar 1000px antes do fim
+                        const threshold = document.body.offsetHeight - 800;
                         
                         if (scrollPosition >= threshold) {
-                            console.log('Loading more posts triggered');
+                            console.log('🔽 Trigger de scroll ativado');
                             loadMorePosts();
                         }
                     }
-                }, 100); // Debounce de 100ms
+                }, 150);
             });
             
-            // Adicionar estilos para loading
-            const style = document.createElement('style');
-            style.textContent = `
-                .loading-spinner {
-                    color: #666;
-                    font-style: italic;
-                }
-                
-                .loading-spinner::after {
-                    content: '';
-                    animation: dots 1.5s steps(5, end) infinite;
-                }
-                
-                @keyframes dots {
-                    0%, 20% { content: ''; }
-                    40% { content: '.'; }
-                    60% { content: '..'; }
-                    80%, 100% { content: '...'; }
-                }
-                
-                /* Suavizar aparição de novos posts */
-                .list__item {
-                    opacity: 0;
-                    animation: fadeIn 0.5s ease-in-out forwards;
-                }
-                
-                @keyframes fadeIn {
-                    to { opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
+            // Listener do botão manual
+            if (loadMoreBtn) {
+                loadMoreBtn.addEventListener('click', function() {
+                    console.log('🖱️ Botão clicado');
+                    loadMorePosts();
+                });
+            }
+            
+            // Log inicial
+            if (!hasMore) {
+                console.log('ℹ️ Apenas uma página - rolagem infinita não necessária');
+            }
             
         })();
     </script>
