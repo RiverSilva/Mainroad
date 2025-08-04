@@ -1,23 +1,106 @@
-{{- if .Site.Menus.main }}
 <nav class="menu">
 	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
-		<span class="menu__btn-title" tabindex="-1">{{ T "menu_label" }}</span>
+		<span class="menu__btn-title" tabindex="-1">{{ T "menu_label" | default "Menu" }}</span>
 	</button>
 	<ul class="menu__list">
-		{{- $currentNode := . }}
-		{{- range .Site.Menus.main }}
-		{{- if .Name }}
-		<li class="menu__item{{ if or ($currentNode.IsMenuCurrent "main" .) ($currentNode.HasMenuCurrent "main" .) }} menu__item--active{{ end }}">
-			<a class="menu__link" href="{{ .URL }}">
-				{{ .Pre }}
+		{{- $currentPage := . }}
+		{{- range site.Menus.main }}
+		<li class="menu__item">
+			<a class="menu__link{{ if or ($currentPage.IsMenuCurrent "main" .) ($currentPage.HasMenuCurrent "main" .) }} menu__link--active{{ end }}" href="{{ .URL | relLangURL }}">
 				<span class="menu__text">{{ .Name }}</span>
-				{{ .Post }}
 			</a>
 		</li>
 		{{- end }}
-		{{- end }}
+		
+		<!-- Google Translate no Menu -->
+		<li class="menu__item menu__item--translate">
+			<div class="menu__translate">
+				<div id="google_translate_element"></div>
+			</div>
+		</li>
 	</ul>
 </nav>
-{{ else -}}
-<div class="divider"></div>
-{{- end }}
+
+<!-- Google Translate Script -->
+<script type="text/javascript">
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement({
+      pageLanguage: 'pt',
+      includedLanguages: 'en,pt,es,fr',
+      layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+    }, 'google_translate_element');
+  }
+</script>
+<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+<style>
+/* Estilos para Google Translate no menu */
+.menu__item--translate {
+  margin-left: auto; /* Empurra para direita no desktop */
+}
+
+.menu__translate {
+  padding: 10px;
+  display: flex;
+  align-items: center;
+}
+
+/* Desktop - lado direito */
+@media screen and (min-width: 768px) {
+  .menu__list {
+    display: flex;
+    align-items: center;
+  }
+  
+  .menu__item--translate {
+    margin-left: auto;
+    border-left: 1px solid rgba(255,255,255,0.1);
+    padding-left: 15px;
+  }
+  
+  .menu__translate {
+    padding: 5px 10px;
+  }
+}
+
+/* Mobile - lado esquerdo, no topo */
+@media screen and (max-width: 767px) {
+  .menu__item--translate {
+    order: -1; /* Primeiro item no mobile */
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+  }
+  
+  .menu__translate {
+    justify-content: center;
+  }
+}
+
+/* Estilizar o widget do Google */
+#google_translate_element {
+  font-size: 12px;
+}
+
+#google_translate_element .goog-te-combo {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+
+#google_translate_element .goog-te-combo:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Esconder a barra do Google Translate */
+.goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+</style>
