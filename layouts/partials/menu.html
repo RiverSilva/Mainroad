@@ -1,8 +1,8 @@
-<nav class="menu">
-	<button class="menu__btn" aria-haspopup="true" aria-expanded="false" tabindex="0">
+<nav class="menu" id="main-menu">
+	<button class="menu__btn" id="menu-toggle" aria-haspopup="true" aria-expanded="false" tabindex="0">
 		<span class="menu__btn-title" tabindex="-1">{{ T "menu_label" | default "Menu" }}</span>
 	</button>
-	<ul class="menu__list">
+	<ul class="menu__list" id="menu-list">
 		{{- $currentPage := . }}
 		{{- range site.Menus.main }}
 		<li class="menu__item">
@@ -21,34 +21,139 @@
 	</ul>
 </nav>
 
+<!-- Menu Mobile Script - Independente -->
+<script>
+(function() {
+  'use strict';
+  
+  console.log('🔧 Inicializando menu mobile customizado...');
+  
+  // Elementos
+  const menuToggle = document.getElementById('menu-toggle');
+  const menuList = document.getElementById('menu-list');
+  const menu = document.getElementById('main-menu');
+  
+  if (!menuToggle || !menuList) {
+    console.error('❌ Elementos do menu não encontrados');
+    return;
+  }
+  
+  console.log('✅ Elementos do menu encontrados');
+  
+  // Estado do menu
+  let isMenuOpen = false;
+  
+  // Função para toggle do menu
+  function toggleMenu() {
+    isMenuOpen = !isMenuOpen;
+    
+    console.log('🔄 Toggle menu:', isMenuOpen ? 'ABRIR' : 'FECHAR');
+    
+    // Atualizar atributos
+    menuToggle.setAttribute('aria-expanded', isMenuOpen);
+    
+    // Atualizar classes
+    if (isMenuOpen) {
+      menu.classList.add('menu--active');
+      menuList.classList.add('menu__list--active');
+      menuToggle.classList.add('menu__btn--active');
+    } else {
+      menu.classList.remove('menu--active');
+      menuList.classList.remove('menu__list--active');
+      menuToggle.classList.remove('menu__btn--active');
+    }
+  }
+  
+  // Event listener para o botão
+  menuToggle.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🖱️ Menu button clicked');
+    toggleMenu();
+  });
+  
+  // Fechar menu ao clicar fora (apenas mobile)
+  document.addEventListener('click', function(e) {
+    if (window.innerWidth <= 767 && isMenuOpen) {
+      if (!menu.contains(e.target)) {
+        console.log('🖱️ Clique fora do menu - fechando');
+        toggleMenu();
+      }
+    }
+  });
+  
+  // Fechar menu ao redimensionar para desktop
+  window.addEventListener('resize', function() {
+    if (window.innerWidth > 767 && isMenuOpen) {
+      console.log('🖥️ Redimensionado para desktop - fechando menu');
+      toggleMenu();
+    }
+  });
+  
+  console.log('✅ Menu mobile inicializado com sucesso');
+  
+})();
+</script>
+
 <!-- Google Translate Script -->
 <script type="text/javascript">
   function googleTranslateElementInit() {
-    new google.translate.TranslateElement({
-      pageLanguage: 'pt',
-      includedLanguages: 'en,pt,es,fr',
-      layout: google.translate.TranslateElement.InlineLayout.SIMPLE
-    }, 'google_translate_element');
+    if (typeof google !== 'undefined' && google.translate) {
+      new google.translate.TranslateElement({
+        pageLanguage: 'pt',
+        includedLanguages: 'en,pt,es,fr',
+        layout: google.translate.TranslateElement.InlineLayout.SIMPLE
+      }, 'google_translate_element');
+    }
   }
+  
+  // Carrega Google Translate após delay
+  setTimeout(function() {
+    if (document.getElementById('google-translate-script')) return;
+    
+    const script = document.createElement('script');
+    script.id = 'google-translate-script';
+    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    script.async = true;
+    script.onerror = function() {
+      console.warn('⚠️ Falha ao carregar Google Translate');
+    };
+    document.head.appendChild(script);
+  }, 1000);
 </script>
-<script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
 
 <style>
-/* Estilos para Google Translate no menu */
-.menu__item--translate {
-  margin-left: auto; /* Empurra para direita no desktop */
-}
+/* IMPORTANTE: Manter compatibilidade com CSS original do Mainroad */
 
-.menu__translate {
-  padding: 10px;
+/* Google Translate Styles */
+.menu__item--translate .menu__translate {
+  padding: 8px 12px;
   display: flex;
   align-items: center;
 }
 
-/* Desktop - lado direito */
+#google_translate_element {
+  font-size: 12px;
+}
+
+#google_translate_element .goog-te-combo {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+#google_translate_element .goog-te-combo:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Desktop - mantém comportamento original */
 @media screen and (min-width: 768px) {
   .menu__list {
-    display: flex;
+    display: flex !important;
     align-items: center;
   }
   
@@ -59,48 +164,112 @@
   }
   
   .menu__translate {
-    padding: 5px 10px;
+    justify-content: flex-end;
   }
 }
 
-/* Mobile - lado esquerdo, no topo */
+/* Mobile - sobrescreve apenas o necessário */
 @media screen and (max-width: 767px) {
+  /* Garantir que o botão apareça */
+  .menu__btn {
+    display: block !important;
+    position: relative;
+    z-index: 101;
+    /* Mantém estilos originais do tema */
+  }
+  
+  /* Lista mobile - CORES ESCURAS ORIGINAIS DO MAINROAD */
+  .menu__list {
+    /* Quando fechado */
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    /* CORES ESCURAS COMO NO TEMA ORIGINAL */
+    background: #333; /* Fundo escuro como original */
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 100;
+  }
+  
+  /* Lista ativa (visível) */
+  .menu__list--active {
+    display: block !important;
+  }
+  
+  /* Itens do menu em mobile */
+  .menu__item {
+    display: block;
+    border-bottom: 1px solid rgba(255,255,255,0.1); /* Borda clara no fundo escuro */
+  }
+  
+  .menu__item:last-child {
+    border-bottom: none;
+  }
+  
+  .menu__link {
+    display: block;
+    padding: 12px 16px;
+    /* TEXTO CLARO PARA FUNDO ESCURO */
+    color: white !important;
+    text-decoration: none;
+  }
+  
+  .menu__link:hover {
+    background: rgba(255,255,255,0.1); /* Hover claro no fundo escuro */
+    color: white !important;
+  }
+  
+  .menu__link--active {
+    background: #d32f2f; /* Vermelho para item ativo (como no tema) */
+    color: white !important;
+  }
+  
+  /* Google Translate no mobile - mantém estilo escuro */
   .menu__item--translate {
-    order: -1; /* Primeiro item no mobile */
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    margin-bottom: 10px;
-    padding-bottom: 10px;
+    order: -1;
+    text-align: center;
+    background: rgba(255,255,255,0.05); /* Fundo ligeiramente diferente mas escuro */
+    border-bottom: 2px solid rgba(255,255,255,0.1); /* Separador mais evidente */
   }
   
   .menu__translate {
     justify-content: center;
+    padding: 12px;
+  }
+  
+  /* Google Translate mantém estilo para fundo escuro */
+  .menu__item--translate #google_translate_element .goog-te-combo {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    box-shadow: none;
+  }
+  
+  .menu__item--translate #google_translate_element .goog-te-combo:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.5);
   }
 }
 
-/* Estilizar o widget do Google */
-#google_translate_element {
-  font-size: 12px;
-}
-
-#google_translate_element .goog-te-combo {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.3);
-  color: white;
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-#google_translate_element .goog-te-combo:hover {
-  background: rgba(255,255,255,0.1);
-}
-
-/* Esconder a barra do Google Translate */
+/* Esconder elementos indesejados do Google Translate */
 .goog-te-banner-frame.skiptranslate {
+  display: none !important;
+}
+
+.goog-te-gadget-icon {
   display: none !important;
 }
 
 body {
   top: 0px !important;
+}
+
+/* Garantir z-index adequado */
+.menu {
+  position: relative;
+  z-index: 100;
 }
 </style>

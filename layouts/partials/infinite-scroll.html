@@ -1,0 +1,489 @@
+{{- /* 
+  Partial: infinite-scroll.html
+  Adiciona funcionalidade de rolagem infinita em páginas de lista
+  Local: layouts/partials/infinite-scroll.html
+*/ -}}
+
+{{- if and (.Paginator) (.Paginator.HasNext) }}
+<!-- Infinite Scroll Enhancement -->
+<div id="infinite-scroll-container" style="display: none;">
+  <!-- Loading indicator -->
+  <div id="infinite-loading" class="infinite-loading">
+    <div class="infinite-loading__content">
+      <span class="infinite-loading__icon">🔄</span>
+      <span class="infinite-loading__text">Carregando mais conteúdo...</span>
+    </div>
+  </div>
+  
+  <!-- Load more button (fallback) -->
+  <div id="infinite-button-container" class="infinite-button">
+    <button id="infinite-load-more" class="infinite-button__btn btn">
+      Carregar Mais Conteúdo
+    </button>
+  </div>
+</div>
+
+<!-- Infinite Scroll Styles -->
+<style>
+.infinite-loading {
+  display: none;
+  text-align: center;
+  padding: 2rem 0;
+  color: #666;
+}
+
+.infinite-loading__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 14px;
+}
+
+.infinite-loading__icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.infinite-button {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.infinite-button__btn {
+  background: #2c5aa0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.infinite-button__btn:hover {
+  background: #1e3d6f;
+  transform: translateY(-1px);
+}
+
+.infinite-button__btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.infinite-button__btn.loading {
+  background: #666;
+  cursor: wait;
+}
+
+.infinite-button__btn.no-more {
+  background: #28a745;
+  cursor: default;
+}
+
+.infinite-button__btn.error {
+  background: #dc3545;
+}
+
+/* Animação para novos posts */
+.list__item.infinite-fade-in {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: infiniteFadeIn 0.6s ease forwards;
+}
+
+@keyframes infiniteFadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hide original pagination when infinite scroll is active */
+.pagination.infinite-hidden {
+  display: none !important;
+}
+</style>
+
+<!-- Infinite Scroll Script -->
+<script>
+(function() {
+  'use strict';
+  
+  // Configuração
+  const config = {
+    debug: true,
+    scrollThreshold: 200,
+    animationDelay: 100,
+    retryAttempts: 3,
+    retryDelay: 1000
+  };
+  
+  // Estado
+  const state = {
+    currentPage: {{ .Paginator.PageNumber }},
+    totalPages: {{ .Paginator.TotalPages }},
+    hasMore: {{ .Paginator.HasNext }},
+    loading: false,
+    retryCount: 0
+  };
+  
+  // Elementos DOM
+  const elements = {
+    container: document.getElementById('infinite-scroll-container'),
+    loading: document.getElementById('infinite-loading'),
+    button: document.getElementById('infinite-load-more'),
+    buttonContainer: document.getElementById('infinite-button-container'),
+    pagination: document.querySelector('.pagination'),
+    main: document.querySelector('main.list') || document.querySelector('main') // Fallback para homepage
+  };
+  
+  // Log função
+  function log(...args) {
+    if (config.debug) {
+      console.log('[Infinite Scroll]', ...args);
+    }
+  }
+  
+  // Inicialização
+  function init() {
+    log('Inicializando...', {
+      currentPage: state.currentPage,
+      totalPages: state.totalPages,
+      hasMore: state.hasMore,
+      url: window.location.pathname
+    });
+    
+    if (!state.hasMore) {
+      log('Não há mais páginas, saindo...');
+      return;
+    }
+    
+    if (!elements.main) {
+      log('❌ Elemento main não encontrado');
+      return;
+    }
+    
+    log('✅ Elemento main encontrado:', elements.main.className || 'main');
+    
+    // Contar posts atuais na página
+    const currentPosts = elements.main.querySelectorAll('.list__item.post');
+    log('📊 Posts atuais na página:', currentPosts.length);
+    
+    // Mostrar container
+    if (elements.container) {
+      elements.container.style.display = 'block';
+    }
+    
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Esconder paginação original
+    if (elements.pagination) {
+      elements.pagination.classList.add('infinite-hidden');
+    }
+    
+    log('Inicializado com sucesso!');
+  }
+  
+  // Setup event listeners
+  function setupEventListeners() {
+    // Scroll automático com proteção contra múltiplos triggers
+    let scrollTimeout;
+    let lastScrollTop = 0;
+    let loadingCooldown = false; // Cooldown para evitar múltiplos loads
+    
+    function onScroll() {
+      // Limpar timeout anterior
+      if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+      }
+      
+      // Debounce scroll events - maior no mobile
+      const debounceTime = window.innerWidth <= 768 ? 300 : 150;
+      
+      scrollTimeout = setTimeout(() => {
+        if (state.loading || !state.hasMore || loadingCooldown) return;
+        
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const docHeight = document.documentElement.scrollHeight;
+        const distanceFromBottom = docHeight - (scrollTop + windowHeight);
+        
+        // Log mais detalhado para mobile
+        const isMobile = window.innerWidth <= 768;
+        log(`Scroll [${isMobile ? 'MOBILE' : 'DESKTOP'}]:`, 
+            `dist=${Math.round(distanceFromBottom)}`, 
+            `thresh=${config.scrollThreshold}`,
+            `cooldown=${loadingCooldown}`);
+        
+        // Verificar se está próximo do final E se scrollou para baixo
+        if (distanceFromBottom <= config.scrollThreshold && scrollTop > lastScrollTop) {
+          log('🔽 WILL TRIGGER in 800ms (mobile protection)');
+          
+          // Ativar cooldown imediatamente
+          loadingCooldown = true;
+          
+          // Delay maior para mobile
+          setTimeout(() => {
+            if (!state.loading && state.hasMore) {
+              log('🔽 TRIGGERING LOAD!');
+              loadMore();
+            } else {
+              log('🔽 BLOCKED - loading:', state.loading, 'hasMore:', state.hasMore);
+              loadingCooldown = false; // Liberar cooldown se bloqueado
+            }
+          }, 800);
+        }
+        
+        lastScrollTop = scrollTop;
+      }, debounceTime);
+    }
+    
+    // Liberar cooldown após carregamento bem-sucedido
+    const originalLoadMore = loadMore;
+    window.loadMoreWithCooldown = async function() {
+      try {
+        await originalLoadMore();
+        // Cooldown de 2 segundos após carregamento
+        setTimeout(() => {
+          loadingCooldown = false;
+          log('🟢 Cooldown liberado - pode carregar novamente');
+        }, 2000);
+      } catch (error) {
+        loadingCooldown = false; // Liberar em caso de erro
+        throw error;
+      }
+    };
+    
+    // Substituir loadMore pela versão com cooldown
+    loadMore = window.loadMoreWithCooldown;
+    
+    window.addEventListener('scroll', onScroll, { passive: true });
+    
+    // Botão manual
+    if (elements.button) {
+      elements.button.addEventListener('click', () => {
+        log('🖱️ Button clicked - bypassing cooldown');
+        loadingCooldown = false; // Botão sempre funciona
+        loadMore();
+      });
+    }
+  }
+  
+  // Carregar mais posts
+  async function loadMore() {
+    if (state.loading || !state.hasMore) {
+      log('Não carregando:', { loading: state.loading, hasMore: state.hasMore });
+      return;
+    }
+    
+    // IMPORTANTE: Bloquear múltiplas chamadas
+    state.loading = true;
+    updateUI('loading');
+    
+    try {
+      const nextPage = state.currentPage + 1;
+      const nextUrl = getNextPageUrl(nextPage);
+      
+      log(`Carregando página ${nextPage}:`, nextUrl);
+      
+      const response = await fetch(nextUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      const { posts, hasNext } = extractPosts(html);
+      
+      if (posts.length === 0) {
+        log('Nenhum post encontrado');
+        state.hasMore = false;
+        updateUI('no-more');
+        return;
+      }
+      
+      // Adicionar posts
+      await addPosts(posts);
+      
+      // ✅ NOVA LÓGICA: Atualizar estado baseado em matemática simples
+      state.currentPage = nextPage;
+      state.hasMore = nextPage < state.totalPages; // Simples e confiável!
+      state.retryCount = 0;
+      
+      log(`✅ Página ${nextPage} carregada:`, { 
+        posts: posts.length, 
+        currentPage: state.currentPage,
+        totalPages: state.totalPages,
+        hasMore: state.hasMore,
+        nextWouldBe: nextPage + 1
+      });
+      
+      updateUI(state.hasMore ? 'normal' : 'no-more');
+      
+    } catch (error) {
+      log('Erro ao carregar:', error);
+      
+      if (state.retryCount < config.retryAttempts) {
+        state.retryCount++;
+        log(`Tentativa ${state.retryCount}/${config.retryAttempts}`);
+        
+        setTimeout(() => {
+          state.loading = false;
+          loadMore();
+        }, config.retryDelay);
+        return; // IMPORTANTE: Return para não executar finally
+      } else {
+        log('Máximo de tentativas atingido');
+        updateUI('error');
+      }
+    } finally {
+      // Só libera loading se não estiver em retry
+      if (state.retryCount === 0) {
+        state.loading = false;
+      }
+    }
+  }
+  
+  // Gerar URL da próxima página
+  function getNextPageUrl(pageNumber) {
+    const path = window.location.pathname;
+    
+    log('🔗 Gerando URL:', { currentPath: path, nextPage: pageNumber });
+    
+    // Página inicial da home
+    if (path === '/' || path === '/index.html' || path === '') {
+      return `/page/${pageNumber}/`;
+    }
+    
+    // Já estamos em uma página numerada da home (/page/2/, /page/3/, etc.)
+    if (path.match(/^\/page\/\d+\/$/)) {
+      return `/page/${pageNumber}/`;
+    }
+    
+    // Página inicial de news
+    if (path === '/news/' || path === '/news') {
+      return `/news/page/${pageNumber}/`;
+    }
+    
+    // Já estamos em uma página numerada de news (/news/page/2/, etc.)
+    if (path.match(/^\/news\/page\/\d+\/$/)) {
+      return `/news/page/${pageNumber}/`;
+    }
+    
+    // Para outras seções (tags, categories, etc.)
+    const sectionMatch = path.match(/^\/([^\/]+)\/?$/);
+    if (sectionMatch) {
+      return `/${sectionMatch[1]}/page/${pageNumber}/`;
+    }
+    
+    // Outras seções com página numerada
+    const sectionPageMatch = path.match(/^\/([^\/]+)\/page\/\d+\/$/);
+    if (sectionPageMatch) {
+      return `/${sectionPageMatch[1]}/page/${pageNumber}/`;
+    }
+    
+    // Fallback - assumir que é home
+    log('⚠️ Fallback para home');
+    return `/page/${pageNumber}/`;
+  }
+  
+  // Extrair posts do HTML
+  function extractPosts(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Buscar posts
+    const postElements = doc.querySelectorAll('.list__item');
+    const posts = Array.from(postElements);
+    
+    // Verificar se há próxima página
+    const hasNext = !!doc.querySelector('.pagination .pagination__item--next');
+    
+    log('Posts extraídos:', { count: posts.length, hasNext });
+    
+    return { posts, hasNext };
+  }
+  
+  // Adicionar posts ao DOM
+  async function addPosts(posts) {
+    const fragment = document.createDocumentFragment();
+    
+    posts.forEach((post, index) => {
+      const clonedPost = post.cloneNode(true);
+      clonedPost.classList.add('infinite-fade-in');
+      clonedPost.style.animationDelay = `${index * config.animationDelay}ms`;
+      fragment.appendChild(clonedPost);
+    });
+    
+    elements.main.appendChild(fragment);
+    
+    log(`${posts.length} posts adicionados ao DOM`);
+  }
+  
+  // Atualizar UI
+  function updateUI(status) {
+    // Loading indicator
+    if (elements.loading) {
+      elements.loading.style.display = status === 'loading' ? 'block' : 'none';
+    }
+    
+    // Button
+    if (elements.button) {
+      switch (status) {
+        case 'loading':
+          elements.button.textContent = 'Carregando...';
+          elements.button.disabled = true;
+          elements.button.className = 'infinite-button__btn btn loading';
+          break;
+          
+        case 'no-more':
+          elements.button.textContent = 'Não há mais conteúdo';
+          elements.button.disabled = true;
+          elements.button.className = 'infinite-button__btn btn no-more';
+          break;
+          
+        case 'error':
+          elements.button.textContent = 'Erro - Clique para tentar novamente';
+          elements.button.disabled = false;
+          elements.button.className = 'infinite-button__btn btn error';
+          break;
+          
+        case 'normal':
+        default:
+          elements.button.textContent = 'Carregar Mais Conteúdo';
+          elements.button.disabled = false;
+          elements.button.className = 'infinite-button__btn btn';
+          break;
+      }
+    }
+    
+    // Hide button container quando não há mais páginas
+    if (elements.buttonContainer && status === 'no-more') {
+      setTimeout(() => {
+        elements.buttonContainer.style.display = 'none';
+      }, 2000);
+    }
+  }
+  
+  // Inicializar quando DOM estiver pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  
+  // Debug
+  if (config.debug) {
+    window.infiniteScroll = { state, elements, loadMore, config };
+  }
+     
+})();
+</script>
+{{- end }}

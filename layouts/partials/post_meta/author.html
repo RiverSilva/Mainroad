@@ -1,6 +1,32 @@
-{{- if .Site.Author.name -}}
-<div class="meta__item-author meta__item">
-	{{ partial "svg/author.svg" (dict "class" "meta__icon") -}}
-	<span class="meta__text">{{ .Site.Author.name }}</span>
+{{- if or .Params.author .Site.Params.author }}
+<div class="meta__item author meta__item--author">
+    <svg class="meta__icon icon icon-author" width="16" height="16" viewBox="0 0 24 24">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+    </svg>
+    <span class="meta__text">
+        Por 
+        {{- $author := .Params.author | default .Site.Params.author }}
+        {{- $authorLink := .Params.author_link | default .Site.Params.authorLink }}
+        
+        {{- if $authorLink }}
+            <a href="{{ $authorLink }}" 
+               target="_blank" 
+               rel="noopener noreferrer" 
+               class="meta__author-link" 
+               title="LinkedIn de {{ $author }}"
+               style="color: #2c5aa0; text-decoration: none; font-weight: 500;">
+               {{ $author }}
+            </a>
+        {{- else }}
+            {{ $author }}
+        {{- end }}
+    </span>
 </div>
-{{- end -}}
+
+<style>
+.meta__author-link:hover {
+    color: #1e3d6f !important;
+    text-decoration: underline !important;
+}
+</style>
+{{- end }}

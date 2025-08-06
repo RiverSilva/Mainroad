@@ -1,24 +1,49 @@
 {{ define "main" }}
-<main class="main list" role="main">
+<main class="main" role="main">
 	{{- with .Content }}
 	<div class="content main__content clearfix">
 		{{ . }}
 	</div>
 	{{- end }}
-	{{ $paginator := .Paginate (where .Site.RegularPages "Type" "in" .Site.Params.mainSections) }}
+	
+	<!-- Busca Mobile (só aparece em telas pequenas) -->
+	<div class="mobile-search-area">
+		<form class="mobile-search-form" role="search" method="get" action="https://google.com/search">
+			<input 
+				class="mobile-search-input" 
+				type="search" 
+				placeholder="Buscar notícias..." 
+				name="q" 
+				aria-label="Buscar no site"
+				autocomplete="off"
+			>
+			<input type="hidden" name="sitesearch" value="{{ .Site.BaseURL }}">
+			<button class="mobile-search-button" type="submit" aria-label="Executar busca">
+				<svg class="mobile-search-icon" viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+				</svg>
+				<span class="sr-only">Buscar</span>
+			</button>
+		</form>
+	</div>
+	
+	<!-- Posts da Homepage -->
+	{{ $paginator := .Paginate (where site.RegularPages "Type" "in" site.Params.mainSections) }}
 	{{- range $paginator.Pages }}
 		{{- .Render "summary" }}
 	{{- end }}
-	{{- if and (eq $paginator.TotalNumberOfElements 0) (not $.Content) }}
-		<div class="warning">
-			{{ partial "svg/files.svg" (dict "class" "warning__icon") }}
-			<h3 class="warning__headline">{{ T "noposts_warning_title" | safeHTML }}</h3>
-			<div class="warning__text">
-				<p class="warning__description">{{ T "noposts_warning_description" | safeHTML }}</p>
-				<p class="warning__tip">{{ T "noposts_warning_tip" | safeHTML }}</p>
-			</div>
-		</div>
-	{{ end }}
 </main>
-{{ partial "pagination.html" . }}
+
+<!-- Paginação Original -->
+{{- if or ($paginator.HasPrev) ($paginator.HasNext) }}
+<nav class="pagination" role="navigation">
+	{{- if $paginator.HasPrev }}
+	<a class="pagination__item pagination__item--prev btn" href="{{ $paginator.Prev.URL }}">«</a>
+	{{- end }}
+	<span class="pagination__item pagination__item--current">{{ $paginator.PageNumber }}/{{ $paginator.TotalPages }}</span>
+	{{- if $paginator.HasNext }}
+	<a class="pagination__item pagination__item--next btn" href="{{ $paginator.Next.URL }}">»</a>
+	{{- end }}
+</nav>
+{{- end }}
 {{ end }}

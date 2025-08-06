@@ -1,0 +1,121 @@
+{{- if .IsPage }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "NewsArticle",
+  "headline": "{{ .Title }}",
+  "description": "{{ with .Params.Description }}{{ . }}{{ else }}{{ .Summary | truncate 160 }}{{ end }}",
+  "image": "{{ with .Params.image }}{{ . | absURL }}{{ else }}{{ .Site.BaseURL }}images/logo.png{{ end }}",
+  "datePublished": "{{ .Date.Format "2006-01-02T15:04:05Z07:00" }}",
+  "dateModified": "{{ .Lastmod.Format "2006-01-02T15:04:05Z07:00" }}",
+  "author": {
+    "@type": "Person",
+    "name": "{{ with .Params.author }}{{ . }}{{ else }}{{ .Site.Params.author }}{{ end }}",
+    "url": "{{ .Site.Params.authorLink | default .Site.BaseURL }}"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "{{ .Site.Title }}",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{ .Site.BaseURL }}images/logo.png",
+      "width": 200,
+      "height": 60
+    },
+    "sameAs": [
+      {{- $social := slice }}
+      {{- with .Site.Params.social.linkedin }}{{ $social = $social | append . }}{{ end }}
+      {{- with .Site.Params.social.github }}{{ $social = $social | append . }}{{ end }}
+      {{- with .Site.Params.social.twitter }}{{ $social = $social | append (printf "https://twitter.com/%s" .) }}{{ end }}
+      {{- range $index, $url := $social }}{{ if $index }},{{ end }}"{{ $url }}"{{ end }}
+    ]
+  },
+  "url": "{{ .Permalink }}",
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "{{ .Permalink }}"
+  },
+  "articleSection": "{{ with .Section }}{{ . | title }}{{ else }}Cibersegurança{{ end }}",
+  "keywords": "{{ with .Params.tags }}{{ delimit . ", " }}{{ end }}",
+  "genre": "{{ with .Section }}{{ . | title }}{{ else }}Cibersegurança{{ end }}",
+  "articleBody": "{{ .Content | plainify | truncate 5000 }}"
+}
+</script>
+{{- else }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "{{ .Site.Title }}",
+  "alternateName": "BR Defense",
+  "description": "{{ .Site.Params.description }}",
+  "url": "{{ .Site.BaseURL }}",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": "{{ .Site.BaseURL }}search?q={search_term_string}",
+    "query-input": "required name=search_term_string"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "{{ .Site.Title }}",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "{{ .Site.BaseURL }}images/logo.png"
+    },
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "customer service",
+      "availableLanguage": ["Portuguese", "English"]
+    },
+    "sameAs": [
+      {{- $social := slice }}
+      {{- with .Site.Params.social.linkedin }}{{ $social = $social | append . }}{{ end }}
+      {{- with .Site.Params.social.github }}{{ $social = $social | append . }}{{ end }}
+      {{- with .Site.Params.social.twitter }}{{ $social = $social | append (printf "https://twitter.com/%s" .) }}{{ end }}
+      {{- range $index, $url := $social }}{{ if $index }},{{ end }}"{{ $url }}"{{ end }}
+    ]
+  },
+  "about": {
+    "@type": "Thing",
+    "name": "Cibersegurança",
+    "description": "Portal especializado em notícias, análises e insights sobre segurança da informação no Brasil"
+  }
+}
+</script>
+{{- end }}
+
+{{- if .IsHome }}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "{{ .Site.Title }} - Página Inicial",
+  "description": "{{ .Site.Params.description }}",
+  "url": "{{ .Site.BaseURL }}",
+  "mainEntity": {
+    "@type": "ItemList",
+    "name": "Últimas Notícias de Cibersegurança",
+    "itemListElement": [
+      {{- $pages := where site.RegularPages "Section" "news" | first 10 }}
+      {{- range $index, $page := $pages }}
+      {{ if $index }},{{ end }}{
+        "@type": "ListItem",
+        "position": {{ add $index 1 }},
+        "item": {
+          "@type": "NewsArticle",
+          "headline": "{{ $page.Title }}",
+          "url": "{{ $page.Permalink }}",
+          "datePublished": "{{ $page.Date.Format "2006-01-02T15:04:05Z07:00" }}",
+          "author": {
+            "@type": "Person",
+            "name": "{{ with $page.Params.author }}{{ . }}{{ else }}{{ site.Params.author }}{{ end }}"
+          }
+        }
+      }
+      {{- end }}
+    ]
+  }
+}
+</script>
+{{- end }}
+

@@ -5,17 +5,51 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>{{ block "title" . }}{{ if not .IsHome }}{{ .Title }} - {{ end }}{{ .Site.Title }}{{ end }}</title>
 	<script>(function(d,e){d[e]=d[e].replace("no-js","js");})(document.documentElement,"className");</script>
-	<meta name="description" content="{{ if .IsHome }}{{ .Site.Params.description }}{{ else }}{{ .Params.Description }}{{ end }}">
+	
+	<!-- Meta Tags Básicas -->
+	<meta name="description" content="{{ if .IsHome }}{{ .Site.Params.description }}{{ else }}{{ with .Params.Description }}{{ . }}{{ else }}{{ .Summary | truncate 160 }}{{ end }}{{ end }}">
+	<meta name="keywords" content="{{ with .Params.keywords }}{{ delimit . ", " }}{{ else }}{{ with .Site.Params.keywords }}{{ delimit . ", " }}{{ end }}{{ end }}">
+	<meta name="author" content="{{ with .Params.author }}{{ . }}{{ else }}{{ .Site.Params.author }}{{ end }}">
+	
+	<!-- Open Graph -->
 	{{- if .Site.Params.opengraph }}
 		{{ template "_internal/opengraph.html" . }}
+	{{- else }}
+	<!-- Open Graph básico se não estiver habilitado -->
+	<meta property="og:title" content="{{ if not .IsHome }}{{ .Title }} - {{ end }}{{ .Site.Title }}">
+	<meta property="og:description" content="{{ if .IsHome }}{{ .Site.Params.description }}{{ else }}{{ with .Params.Description }}{{ . }}{{ else }}{{ .Summary | truncate 160 }}{{ end }}{{ end }}">
+	<meta property="og:type" content="{{ if .IsPage }}article{{ else }}website{{ end }}">
+	<meta property="og:url" content="{{ .Permalink }}">
+	<meta property="og:image" content="{{ .Site.BaseURL }}images/logo.png">
+	<meta property="og:site_name" content="{{ .Site.Title }}">
+	<meta property="og:locale" content="{{ .Site.Language.Lang }}">
 	{{- end }}
+	
+	<!-- Schema.org -->
 	{{- if .Site.Params.schema }}
 		{{ template "_internal/schema.html" . }}
+	{{- else }}
+		{{- partial "structured-data.html" . }}
 	{{- end }}
+	
+	<!-- Twitter Cards -->
 	{{- if .Site.Params.twitter_cards }}
 		{{ template "_internal/twitter_cards.html" . }}
+	{{- else }}
+	<!-- Twitter Cards básico -->
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="{{ if not .IsHome }}{{ .Title }} - {{ end }}{{ .Site.Title }}">
+	<meta name="twitter:description" content="{{ if .IsHome }}{{ .Site.Params.description }}{{ else }}{{ with .Params.Description }}{{ . }}{{ else }}{{ .Summary | truncate 160 }}{{ end }}{{ end }}">
+	<meta name="twitter:image" content="{{ .Site.BaseURL }}images/logo.png">
+	{{- with .Site.Params.social.twitter }}
+	<meta name="twitter:site" content="@{{ . }}">
 	{{- end }}
-
+	{{- end }}
+	
+	<!-- Canonical URL -->
+	<link rel="canonical" href="{{ .Permalink }}">
+	
+	<!-- DNS Prefetch e Preconnect -->
 	{{- $googleFontsLink := .Site.Params.googleFontsLink | default "https://fonts.googleapis.com/css?family=Open+Sans:400,400i,700" }}
 	{{- if hasPrefix $googleFontsLink "https://fonts.googleapis.com/" }}
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,29 +57,60 @@
 	<link rel="dns-prefetch" href="//fonts.gstatic.com">
 	<link rel="stylesheet" {{ printf `href="%s"` $googleFontsLink | safeHTMLAttr }}>
 	{{- end }}
+	
+	<!-- Google Tag Manager - HEAD -->
+	{{- partial "gtm-head.html" . }}
 
+	<!-- CSS -->
 	{{ $style := resources.Get "css/style.css" | resources.ExecuteAsTemplate "css/style.css" . -}}
 	<link rel="stylesheet" href="{{ $style.RelPermalink }}">
 	{{ range .Site.Params.customCSS -}}
 	<link rel="stylesheet" href="{{ . | relURL }}">
 	{{- end }}
 
+	<!-- RSS Feed -->
 	{{- with .OutputFormats.Get "rss" }}
 	{{ printf `<link rel="%s" type="%s" href="%s" title="%s">` .Rel .MediaType.Type .RelPermalink $.Site.Title | safeHTML }}
 	{{- end }}
 
+	<!-- Favicons -->
 	<link rel="shortcut icon" href="{{ "favicon.ico" | relURL }}">
+	{{- with .Site.Params.assets }}
+	{{- if .favicon16x16 }}<link rel="icon" type="image/png" sizes="16x16" href="{{ .favicon16x16 | relURL }}">{{ end }}
+	{{- if .favicon32x32 }}<link rel="icon" type="image/png" sizes="32x32" href="{{ .favicon32x32 | relURL }}">{{ end }}
+	{{- if .apple_touch_icon }}<link rel="apple-touch-icon" sizes="180x180" href="{{ .apple_touch_icon | relURL }}">{{ end }}
+	{{- if .safari_pinned_tab }}<link rel="mask-icon" href="{{ .safari_pinned_tab | relURL }}" color="#e22d30">{{ end }}
+	{{- end }}
+	
+	<!-- Manifest para PWA (se existir) -->
+	{{- if fileExists "static/manifest.json" }}
+	<link rel="manifest" href="{{ "manifest.json" | relURL }}">
+	{{- end }}
+	
+	<!-- Theme Color -->
+	<meta name="theme-color" content="#e22d30">
+	<meta name="msapplication-TileColor" content="#e22d30">
+	
+	<!-- Google Analytics (método legado, mantido para compatibilidade) -->
 	{{- $server := "" }}
 	{{- if gt (int (index (split hugo.Version ".") 1)) "120" }}
 		{{ $server = hugo.IsServer }}
 	{{- else }}
 		{{ $server = .Site.IsServer }}
 	{{- end -}}
-	{{- if not $server }}
+	{{- if and (not $server) (not .Site.Params.gtm_id) }}
 		{{ template "_internal/google_analytics.html" . }}
 	{{- end }}
+	
+	<!-- Preload critical resources -->
+	{{- if .Site.Params.preload_fonts }}
+	<link rel="preload" href="{{ "fonts/OpenSans-Regular.woff2" | relURL }}" as="font" type="font/woff2" crossorigin>
+	{{- end }}
 </head>
-<body class="body">
+<body class="body{{ if .IsHome }} body--home{{ end }}{{ if .IsPage }} body--single{{ end }}{{ if eq .Kind "section" }} body--list{{ end }}">
+	<!-- Google Tag Manager - BODY -->
+	{{- partial "gtm-body.html" . }}
+	
 	<div class="container container--outer">
 		{{ block "header" . }}{{ partial "header.html" . }}{{ end }}
 		<div class="wrapper flex">
@@ -62,10 +127,38 @@
 		</div>
 		{{ block "footer" . }}{{ partial "footer.html" . }}{{ end }}
 	</div>
-<script async defer src="{{ "js/menu.js" | relURL }}"></script>
-{{ range .Site.Params.customJS -}}
-<script src="{{ . | relURL }}"></script>
-{{- end }}
-{{- partial "mathjax.html" . -}}
+
+	<!-- ✅ POSIÇÃO IDEAL: Cookie Consent Banner -->
+	{{- partial "cookie-consent.html" . }}
+
+	<!-- JavaScript -->
+	<script async defer src="{{ "js/menu.js" | relURL }}"></script>
+	
+	<!-- Analytics JavaScript (carregado condicionalmente) -->
+	{{- if .Site.Params.gtm_id }}
+	<script async defer src="{{ "js/analytics.js" | relURL }}"></script>
+	{{- end }}
+	
+	<!-- Custom JavaScript -->
+	{{ range .Site.Params.customJS -}}
+	<script src="{{ . | relURL }}"></script>
+	{{- end }}
+	
+	<!-- MathJax (se necessário) -->
+	{{- partial "mathjax.html" . -}}
+	
+	<!-- Analytics Events (deve vir por último) -->
+	{{- partial "analytics-events.html" . }}
+	
+	<!-- Service Worker para PWA (se existir) -->
+	{{- if fileExists "static/sw.js" }}
+	<script>
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', function() {
+				navigator.serviceWorker.register('/sw.js');
+			});
+		}
+	</script>
+	{{- end }}
 </body>
 </html>

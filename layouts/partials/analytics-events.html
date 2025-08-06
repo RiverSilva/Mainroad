@@ -1,0 +1,154 @@
+<!-- layouts/partials/analytics-events.html -->
+{{- if .Site.Params.gtm_id }}
+<script>
+// Inicialização de variáveis globais para analytics
+window.brDefenseConfig = {
+  siteName: '{{ .Site.Title }}',
+  currentPage: '{{ .Permalink }}',
+  pageType: '{{ if .IsHome }}home{{ else if .IsPage }}article{{ else if eq .Kind "section" }}section{{ else }}other{{ end }}',
+  section: '{{ .Section }}',
+  tags: [{{ with .Params.tags }}{{ range $index, $tag := . }}{{ if $index }},{{ end }}"{{ $tag }}"{{ end }}{{ end }}],
+  author: '{{ with .Params.author }}{{ . }}{{ else }}{{ .Site.Params.author }}{{ end }}',
+  publishDate: '{{ with .Date }}{{ .Format "2006-01-02" }}{{ end }}',
+  language: '{{ .Site.Language.Lang }}'
+};
+
+// Event tracking helpers - disponíveis globalmente
+window.trackEvent = function(eventName, parameters = {}) {
+  if (typeof gtag === 'function') {
+    const defaultParams = {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: window.location.pathname
+    };
+    gtag('event', eventName, { ...defaultParams, ...parameters });
+    console.log('📊 Event tracked:', eventName, parameters);
+  }
+};
+
+window.trackConversion = function(conversionName, value = 0, currency = 'BRL') {
+  window.trackEvent('conversion', {
+    event_category: 'conversions',
+    event_label: conversionName,
+    value: value,
+    currency: currency
+  });
+};
+
+// Track page view com informações customizadas
+const section = {{ printf "%q" (.Section | title) }};
+const pageType = {{ printf "%q" (cond .IsHome "Home" (cond .IsPage "Article" "Other")) }};
+gtag('event', 'page_view', {
+  page_title: document.title,
+  page_location: window.location.href,
+  content_group1: section,
+  content_group2: pageType,
+  custom_parameters: window.brDefenseConfig
+});
+
+// Rastreamento básico de interações (executado quando DOM carrega)
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('🔍 BR Defense Analytics initialized');
+  
+  // Track newsletter forms se existirem
+  const newsletterForms = document.querySelectorAll('.newsletter-form, [data-newsletter-form]');
+  newsletterForms.forEach(form => {
+    form.addEventListener('submit', function() {
+      window.trackConversion('newsletter_signup', 5.00);
+    });
+  });
+  
+  // Track external links
+  const externalLinks = document.querySelectorAll('a[href^="http"]:not([href*="' + location.hostname + '"])');
+  externalLinks.forEach(link => {
+    link.addEventListener('click', function() {
+      window.trackEvent('external_link_click', {
+        event_category: 'outbound',
+        event_label: this.href,
+        link_domain: new URL(this.href).hostname
+      });
+    });
+  });
+  
+  // Track search if search form exists
+  const searchForms = document.querySelectorAll('.search-form, .widget-search__form, .mobile-search-form');
+  searchForms.forEach(form => {
+    form.addEventListener('submit', function() {
+      const query = this.querySelector('input[name="q"]').value;
+      if (query) {
+        window.trackEvent('search', {
+          event_category: 'site_search',
+          search_term: query.substring(0, 100)
+        });
+      }
+    });
+  });
+});
+
+{{- if .IsPage }}
+// Specific tracking for articles
+let articleStartTime = Date.now();
+let maxScrollDepth = 0;
+
+// Track reading progress
+window.addEventListener('scroll', function() {
+  const scrollTop = window.pageYOffset;
+  const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+  const scrollPercent = Math.round((scrollTop / docHeight) * 100);
+  
+  if (scrollPercent > maxScrollDepth) {
+    maxScrollDepth = scrollPercent;
+    
+    // Track milestone events
+    if (scrollPercent >= 25 && !window.scroll25) {
+      window.scroll25 = true;
+      window.trackEvent('scroll_depth', {
+        event_category: 'engagement',
+        event_label: '25%',
+        value: 25
+      });
+    } else if (scrollPercent >= 50 && !window.scroll50) {
+      window.scroll50 = true;
+      window.trackEvent('scroll_depth', {
+        event_category: 'engagement', 
+        event_label: '50%',
+        value: 50
+      });
+    } else if (scrollPercent >= 75 && !window.scroll75) {
+      window.scroll75 = true;
+      window.trackEvent('scroll_depth', {
+        event_category: 'engagement',
+        event_label: '75%', 
+        value: 75
+      });
+      
+      // High engagement reached
+      const timeOnPage = Math.round((Date.now() - articleStartTime) / 1000);
+      if (timeOnPage >= 60) {
+        window.trackConversion('article_engagement', 2.00);
+      }
+    }
+  }
+});
+
+// Track time spent on page when leaving
+window.addEventListener('beforeunload', function() {
+  const timeOnPage = Math.round((Date.now() - articleStartTime) / 1000);
+  
+  if (timeOnPage >= 10) {
+    window.trackEvent('article_read_time', {
+      event_category: 'engagement',
+      event_label: '{{ .Title | truncate 50 }}',
+      value: timeOnPage,
+      custom_parameters: {
+        time_on_page: timeOnPage,
+        scroll_depth: maxScrollDepth,
+        article_category: '{{ .Section }}',
+        reading_completion: maxScrollDepth >= 75 ? 'completed' : 'partial'
+      }
+    });
+  }
+});
+{{- end }}
+</script>
+{{- end }}

@@ -1,9 +1,234 @@
+{{- /* Footer com partial de rolagem infinita */ -}}
+
 <footer class="footer">
-	<div class="container footer__container flex">
-		{{ partial "footer_links.html" . }}
-		<div class="footer__copyright">
-			&copy; {{ now.Format "2006" }} {{ .Site.Params.copyright | default .Site.Title }}.
-			<span class="footer__copyright-credits">{{ T "footer_credits" | safeHTML }}</span>
-		</div>
-	</div>
+    <div class="container footer__container flex">
+        <div class="footer__copyright">
+            &copy; {{ now.Year }} {{ .Site.Title }}.
+            <span class="footer__copyright-credits">
+                Gerado com <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank">Hugo</a> 
+                com o tema <a href="https://github.com/Vimux/Mainroad/" rel="nofollow noopener" target="_blank">Mainroad</a>.
+            </span>
+        </div>
+    </div>
 </footer>
+
+{{- /* Scripts do tema original */ -}}
+<script async defer src="{{ "js/menu.js" | relURL }}"></script>
+
+{{- /* Rolagem infinita em páginas de lista (home, news, etc.) */ -}}
+{{- if .IsHome }}
+    {{- partial "infinite-scroll.html" . }}
+{{- else if eq .Kind "section" }}
+    {{- partial "infinite-scroll.html" . }}
+{{- else if eq .Kind "taxonomy" }}
+    {{- partial "infinite-scroll.html" . }}
+{{- end }}
+
+{{- /* CSS Global para Busca Mobile e Layout */ -}}
+<style>
+/* ===== BUSCA MOBILE GLOBAL ===== */
+.mobile-search-area {
+	display: none;
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+@media screen and (max-width: 767px) {
+	
+	/* ===== SIDEBAR OCULTA NO MOBILE ===== */
+	.sidebar {
+		display: none !important;
+	}
+	
+	.primary {
+		width: 100% !important;
+		max-width: 100% !important;
+		flex: 1 !important;
+	}
+	
+	.wrapper.flex {
+		display: block !important;
+	}
+	
+	/* ===== BUSCA MOBILE ===== */
+	.mobile-search-area {
+		display: block !important;
+		background: #f8f9fa;
+		padding: 1rem 15px;
+		border-bottom: 1px solid #e9ecef;
+		margin-bottom: 1.5rem;
+	}
+	
+	.mobile-search-form {
+		display: flex;
+		max-width: 100%;
+		background: white;
+		border-radius: 8px;
+		overflow: hidden;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+	
+	.mobile-search-input {
+		flex: 1;
+		padding: 12px 16px;
+		border: none;
+		font-size: 16px;
+		outline: none;
+		font-family: inherit;
+	}
+	
+	.mobile-search-input::placeholder {
+		color: #6c757d;
+	}
+	
+	.mobile-search-button {
+		background: #2c5aa0;
+		color: white;
+		border: none;
+		padding: 12px 16px;
+		cursor: pointer;
+		transition: background 0.3s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	
+	.mobile-search-button:hover {
+		background: #1e3d6f;
+	}
+	
+	.mobile-search-icon {
+		width: 18px;
+		height: 18px;
+		fill: currentColor;
+	}
+	
+	/* ===== LAYOUT MOBILE ===== */
+	.main, .main.list {
+		padding: 0 15px !important;
+	}
+	
+	.list__item.post {
+		margin-bottom: 2rem !important;
+		padding: 1.5rem !important;
+		background: #fff;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	}
+	
+	.list__title.post__title {
+		font-size: 1.25rem !important;
+		line-height: 1.4 !important;
+		margin-bottom: 1rem !important;
+	}
+	
+	.list__title.post__title a {
+		color: #333 !important;
+		text-decoration: none !important;
+	}
+	
+	.list__title.post__title a:hover {
+		color: #2c5aa0 !important;
+	}
+	
+	.post__meta {
+		margin-bottom: 1rem !important;
+		font-size: 0.9rem !important;
+		color: #666 !important;
+	}
+	
+	.list__excerpt.post__content {
+		font-size: 0.95rem !important;
+		line-height: 1.6 !important;
+		margin-bottom: 1rem !important;
+		color: #444 !important;
+	}
+	
+	.list__footer-readmore {
+		display: inline-block !important;
+		background: #2c5aa0 !important;
+		color: white !important;
+		padding: 10px 18px !important;
+		border-radius: 6px !important;
+		text-decoration: none !important;
+		font-size: 0.9rem !important;
+		font-weight: 500 !important;
+		transition: all 0.3s ease !important;
+	}
+	
+	.list__footer-readmore:hover {
+		background: #1e3d6f !important;
+		transform: translateY(-1px) !important;
+	}
+	
+	/* ===== ROLAGEM INFINITA MOBILE ===== */
+	.infinite-button__btn {
+		font-size: 16px !important;
+		padding: 14px 28px !important;
+		margin: 2rem auto !important;
+		width: calc(100% - 30px) !important;
+		max-width: 300px !important;
+	}
+	
+	.infinite-loading {
+		padding: 1.5rem 0 !important;
+	}
+	
+	/* ===== PAGINAÇÃO MOBILE ===== */
+	.pagination {
+		margin: 2rem 0 !important;
+		text-align: center !important;
+	}
+	
+	.pagination__item {
+		display: inline-block !important;
+		margin: 0 8px !important;
+		padding: 10px 16px !important;
+		font-size: 1rem !important;
+	}
+	
+	.pagination__item--current {
+		background: #2c5aa0 !important;
+		color: white !important;
+		border-radius: 6px !important;
+	}
+	
+	.pagination__item--prev,
+	.pagination__item--next {
+		background: #f8f9fa !important;
+		border: 1px solid #dee2e6 !important;
+		border-radius: 6px !important;
+		text-decoration: none !important;
+		color: #2c5aa0 !important;
+	}
+	
+	.pagination__item--prev:hover,
+	.pagination__item--next:hover {
+		background: #e9ecef !important;
+	}
+}
+
+/* ===== ACESSIBILIDADE ===== */
+.mobile-search-input:focus,
+.mobile-search-button:focus,
+.list__footer-readmore:focus {
+	outline: 2px solid #2c5aa0 !important;
+	outline-offset: 2px !important;
+}
+
+@media screen and (max-width: 767px) {
+	html {
+		scroll-behavior: smooth;
+	}
+}
+</style>
